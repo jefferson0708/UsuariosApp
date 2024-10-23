@@ -25,13 +25,16 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish -c Release -o ./myapp
+
+      - name: Compress published app into a ZIP
+        run: Compress-Archive -Path ./myapp/* -DestinationPath ./myapp.zip  # Compactar a aplicação em um arquivo ZIP
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: ./myapp.zip  # Fazer upload do arquivo ZIP
 
   deploy:
     runs-on: windows-latest
@@ -61,5 +64,7 @@ jobs:
         with:
           app-name: 'usuariosappweb'
           slot-name: 'Production'
-          package: .
+          package: './myapp.zip'  # Usar o arquivo ZIP gerado
           
+
+
