@@ -48,10 +48,20 @@ namespace UsuariosApp.API.Controllers
 
 
         [HttpPost("refresh-token")]
-        public async Task<IActionResult> RefreshToken()
+        [ProducesResponseType(typeof(AutenticarUsuarioResponseDTO), 200)]
+        public async Task<IActionResult> RefreshToken([FromBody] string refreshToken)
         {
-            return Ok();
+            try
+            {
+                var response = await _usuarioService.RefreshTokenAsync(refreshToken);
+                return Ok(response);
+            }
+            catch (ApplicationException e)
+            {
+                return StatusCode(400, new { e.Message });
+            }
         }
+
     }
 }
 

@@ -46,11 +46,37 @@ namespace UsuariosApp.API.Services
             };
         }
 
+        //public async Task<AutenticarUsuarioResponseDTO> AutenticarAsync(AutenticarUsuarioRequestDTO dto)
+        //{
+        //    var usuario = await _dataContext.Usuarios.FirstOrDefaultAsync(u => u.Email.Equals(dto.Email) && u.Senha.Equals(dto.Senha));
+        //    if (usuario == null)
+        //        throw new ApplicationException("Usuário não encontrado.");
+
+        //    return new AutenticarUsuarioResponseDTO
+        //    {
+        //        Id = usuario.Id,
+        //        Nome = usuario.Nome,
+        //        Email = usuario.Email,
+        //        AccessToken = GenerateToken(usuario.Email),
+        //        RefreshToken = GenerateRefreshToken()
+        //    };
+        //}
+
         public async Task<AutenticarUsuarioResponseDTO> AutenticarAsync(AutenticarUsuarioRequestDTO dto)
         {
             var usuario = await _dataContext.Usuarios.FirstOrDefaultAsync(u => u.Email.Equals(dto.Email) && u.Senha.Equals(dto.Senha));
             if (usuario == null)
                 throw new ApplicationException("Usuário não encontrado.");
+
+            // Gerar o RefreshToken e a data de expiração
+            var refreshToken = GenerateRefreshToken();
+            var refreshTokenExpiration = DateTime.Now.AddHours(_jwtSettings.RefreshTokenExpiration); // Defina a expiração com base nas configurações
+
+            // Atualizar o usuário com o RefreshToken e a data de expiração
+            usuario.RefreshToken = refreshToken;
+            usuario.RefreshTokenExpiration = refreshTokenExpiration;
+            _dataContext.Usuarios.Update(usuario);
+            await _dataContext.SaveChangesAsync();
 
             return new AutenticarUsuarioResponseDTO
             {
@@ -58,9 +84,32 @@ namespace UsuariosApp.API.Services
                 Nome = usuario.Nome,
                 Email = usuario.Email,
                 AccessToken = GenerateToken(usuario.Email),
-                RefreshToken = GenerateRefreshToken()
+                RefreshToken = refreshToken
             };
         }
+
+
+        public async Task<AutenticarUsuarioResponseDTO> RefreshTokenAsync(string refreshToken)
+        {
+            var usuario = await _dataContext.Usuarios
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+
+            if (usuario == null || usuario.RefreshTokenExpiration < DateTime.Now)
+                throw new ApplicationException("Refresh token inválido ou já expirado.");
+
+            usuario.RefreshToken = GenerateRefreshToken();
+            await _dataContext.SaveChangesAsync();
+
+            return new AutenticarUsuarioResponseDTO
+            {
+                Id = usuario.Id,
+                Nome = usuario.Nome,
+                Email = usuario.Email,
+                AccessToken = GenerateToken(usuario.Email),
+                RefreshToken = usuario.RefreshToken
+            };
+        }
+
 
         private string GenerateToken(string email)
         {
